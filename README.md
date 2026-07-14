@@ -62,7 +62,7 @@ Junior Full Stack Engineer challenge.
 
 In the repository structure section, make sure it contains both applications:
 
-```md
+````md
 ```text
 smart-ledger/
 ├── apps/
@@ -73,3 +73,5 @@ smart-ledger/
 ├── docker-compose.yml
 ├── pnpm-workspace.yaml
 └── turbo.json
+```
+````
