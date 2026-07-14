@@ -4,6 +4,7 @@ import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, {
@@ -54,6 +55,7 @@ async function bootstrap(): Promise<void> {
   });
 
   app.enableShutdownHooks();
+  app.useGlobalFilters(new HttpExceptionFilter());
 
   await app.listen(port);
 }
