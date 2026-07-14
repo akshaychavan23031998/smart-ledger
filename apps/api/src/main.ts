@@ -1,6 +1,7 @@
+import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 
@@ -35,6 +36,22 @@ async function bootstrap(): Promise<void> {
       },
     }),
   );
+
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('Smart Ledger API')
+    .setDescription(
+      'REST API for authentication, ledger transactions, dashboard analytics, and financial insights.',
+    )
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+
+  const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
+
+  SwaggerModule.setup('docs', app, swaggerDocument, {
+    useGlobalPrefix: true,
+    customSiteTitle: 'Smart Ledger API Documentation',
+  });
 
   app.enableShutdownHooks();
 
