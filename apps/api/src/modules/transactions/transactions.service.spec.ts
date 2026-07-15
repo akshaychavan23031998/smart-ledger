@@ -116,8 +116,7 @@ describe('TransactionsService', () => {
         update: jest.fn<Promise<unknown>, [unknown]>(),
         delete: jest.fn<Promise<unknown>, [unknown]>(),
       },
-      $transaction:
-        jest.fn<Promise<[number, unknown[]]>, [unknown[]]>(),
+      $transaction: jest.fn<Promise<[number, unknown[]]>, [unknown[]]>(),
     };
 
     const module: TestingModule = await Test.createTestingModule({

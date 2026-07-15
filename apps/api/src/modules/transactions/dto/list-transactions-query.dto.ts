@@ -1,9 +1,9 @@
-import { Transform, Type } from 'class-transformer';
+import { Type } from 'class-transformer';
 import {
   IsDateString,
   IsEnum,
-  IsInt,
   IsIn,
+  IsInt,
   IsOptional,
   IsString,
   Max,
@@ -12,26 +12,32 @@ import {
 import {
   TransactionCategory,
   TransactionType,
-} from '../../../generated/prisma/enums';
+} from '../../../generated/prisma/client';
+
+export const transactionSortFields = [
+  'occurredAt',
+  'createdAt',
+  'amountMinor',
+  'title',
+] as const;
+
+export type TransactionSortField = (typeof transactionSortFields)[number];
 
 export class ListTransactionsQueryDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  page?: number = 1;
+  page = 1;
 
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(100)
-  limit?: number = 20;
+  limit = 20;
 
   @IsOptional()
-  @Transform(({ value }: { value: unknown }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
   @IsString()
   search?: string;
 
@@ -52,8 +58,8 @@ export class ListTransactionsQueryDto {
   dateTo?: string;
 
   @IsOptional()
-  @IsIn(['occurredAt', 'createdAt', 'amountMinor', 'title'])
-  sortBy?: 'occurredAt' | 'createdAt' | 'amountMinor' | 'title';
+  @IsIn(transactionSortFields)
+  sortBy?: TransactionSortField;
 
   @IsOptional()
   @IsIn(['asc', 'desc'])

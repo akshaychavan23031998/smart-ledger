@@ -76,8 +76,13 @@ export class TransactionsService {
   }
 
   async list(userId: string, query: ListTransactionsQueryDto) {
-    const page = query.page ?? 1;
-    const limit = query.limit ?? 20;
+    const page = Number(query.page ?? 1);
+    const limit = Math.min(
+      100,
+      Math.max(1, Number(query.limit ?? 20)),
+    );
+    const skip = (page - 1) * limit;
+
     const search = query.search?.trim();
     const sortBy = query.sortBy ?? 'occurredAt';
     const sortOrder = query.sortOrder ?? 'desc';
@@ -107,7 +112,9 @@ export class TransactionsService {
       ...(query.dateFrom || query.dateTo
         ? {
             occurredAt: {
-              ...(query.dateFrom ? { gte: new Date(query.dateFrom) } : {}),
+              ...(query.dateFrom
+                ? { gte: new Date(query.dateFrom) }
+                : {}),
               ...(query.dateTo ? { lte: new Date(query.dateTo) } : {}),
             },
           }
@@ -130,7 +137,7 @@ export class TransactionsService {
       this.prisma.transaction.findMany({
         where,
         orderBy,
-        skip: (page - 1) * limit,
+        skip,
         take: limit,
         select: transactionSelect,
       }),
