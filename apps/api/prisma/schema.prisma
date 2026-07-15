@@ -1,0 +1,64 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum TransactionCategory {
+  SALARY
+  FREELANCE
+  INVESTMENT
+  GIFT
+  REFUND
+  FOOD
+  TRANSPORT
+  HOUSING
+  UTILITIES
+  HEALTHCARE
+  EDUCATION
+  ENTERTAINMENT
+  SHOPPING
+  TRAVEL
+  SUBSCRIPTIONS
+  OTHER
+}
+
+model User {
+  id           String        @id @default(uuid()) @db.Uuid
+  email        String        @unique
+  name         String
+  passwordHash String
+  transactions Transaction[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@map("users")
+}
+
+model Transaction {
+  id          String              @id @default(uuid()) @db.Uuid
+  userId      String              @db.Uuid
+  type        TransactionType
+  category    TransactionCategory
+  amountMinor BigInt
+  title       String              @db.VarChar(120)
+  description String?             @db.VarChar(500)
+  occurredAt  DateTime
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, occurredAt])
+  @@index([userId, type])
+  @@index([userId, category])
+  @@map("transactions")
+}
