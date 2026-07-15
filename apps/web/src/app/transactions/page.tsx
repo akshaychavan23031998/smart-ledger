@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+
 import { TransactionFilters } from '../../components/transactions/transaction-filters';
 import { TransactionForm } from '../../components/transactions/transaction-form';
 import { TransactionList } from '../../components/transactions/transaction-list';
+import { TransactionSummaryCards } from '../../components/transactions/transaction-summary';
 import { Alert } from '../../components/ui/alert';
 import { Button } from '../../components/ui/button';
 import { LoadingState } from '../../components/ui/loading-state';
@@ -33,6 +35,7 @@ import type {
   Transaction,
   TransactionListResponse,
   TransactionQuery,
+  TransactionSummary,
   UpdateTransactionInput,
 } from '../../types/transaction';
 
@@ -63,8 +66,17 @@ export default function TransactionsPage() {
   const router = useRouter();
 
   const [user, setUser] = useState<User | null>(null);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [query, setQuery] = useState<TransactionQuery>(initialQuery);
+
+  const [transactions, setTransactions] = useState<
+    Transaction[]
+  >([]);
+
+  const [summary, setSummary] =
+    useState<TransactionSummary | null>(null);
+
+  const [query, setQuery] =
+    useState<TransactionQuery>(initialQuery);
+
   const [pagination, setPagination] = useState({
     page: 1,
     limit: DEFAULT_PAGE_SIZE,
@@ -72,19 +84,33 @@ export default function TransactionsPage() {
     totalPages: 0,
   });
 
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [isListLoading, setIsListLoading] = useState(false);
-  const [isFormSubmitting, setIsFormSubmitting] = useState(false);
-  const [deletingTransactionId, setDeletingTransactionId] =
-    useState<string | null>(null);
+  const [isInitialLoading, setIsInitialLoading] =
+    useState(true);
+
+  const [isListLoading, setIsListLoading] =
+    useState(false);
+
+  const [isSummaryLoading, setIsSummaryLoading] =
+    useState(false);
+
+  const [isFormSubmitting, setIsFormSubmitting] =
+    useState(false);
+
+  const [
+    deletingTransactionId,
+    setDeletingTransactionId,
+  ] = useState<string | null>(null);
 
   const [editingTransaction, setEditingTransaction] =
     useState<Transaction | null>(null);
-  const [isFormOpen, setIsFormOpen] = useState(false);
+
+  const [isFormOpen, setIsFormOpen] =
+    useState(false);
 
   const [error, setError] = useState('');
   const [formError, setFormError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  const [successMessage, setSuccessMessage] =
+    useState('');
 
   const handleUnauthorized = useCallback(() => {
     removeAccessToken();
@@ -97,12 +123,14 @@ export default function TransactionsPage() {
       setError('');
 
       try {
-        const queryString = buildQueryString(nextQuery);
+        const queryString =
+          buildQueryString(nextQuery);
 
-        const response = await apiGet<TransactionListResponse>(
-          `/transactions?${queryString}`,
-          true,
-        );
+        const response =
+          await apiGet<TransactionListResponse>(
+            `/transactions?${queryString}`,
+            true,
+          );
 
         setTransactions(response.items);
         setPagination(response.pagination);
@@ -115,13 +143,43 @@ export default function TransactionsPage() {
           return;
         }
 
-        setError(getApiErrorMessage(requestError));
+        setError(
+          getApiErrorMessage(requestError),
+        );
       } finally {
         setIsListLoading(false);
       }
     },
     [handleUnauthorized],
   );
+
+  const loadSummary = useCallback(async () => {
+    setIsSummaryLoading(true);
+
+    try {
+      const response =
+        await apiGet<TransactionSummary>(
+          '/transactions/summary',
+          true,
+        );
+
+      setSummary(response);
+    } catch (requestError) {
+      if (
+        requestError instanceof ApiError &&
+        requestError.status === 401
+      ) {
+        handleUnauthorized();
+        return;
+      }
+
+      setError(
+        getApiErrorMessage(requestError),
+      );
+    } finally {
+      setIsSummaryLoading(false);
+    }
+  }, [handleUnauthorized]);
 
   useEffect(() => {
     let isMounted = true;
@@ -143,7 +201,11 @@ export default function TransactionsPage() {
         }
 
         setUser(currentUser);
-        await loadTransactions(initialQuery);
+
+        await Promise.all([
+          loadTransactions(initialQuery),
+          loadSummary(),
+        ]);
       } catch (requestError) {
         if (
           requestError instanceof ApiError &&
@@ -154,7 +216,9 @@ export default function TransactionsPage() {
         }
 
         if (isMounted) {
-          setError(getApiErrorMessage(requestError));
+          setError(
+            getApiErrorMessage(requestError),
+          );
         }
       } finally {
         if (isMounted) {
@@ -168,13 +232,28 @@ export default function TransactionsPage() {
     return () => {
       isMounted = false;
     };
-  }, [handleUnauthorized, loadTransactions]);
+  }, [
+    handleUnauthorized,
+    loadSummary,
+    loadTransactions,
+  ]);
 
   async function refreshTransactions(
     nextQuery: TransactionQuery = query,
   ) {
     setQuery(nextQuery);
     await loadTransactions(nextQuery);
+  }
+
+  async function refreshDashboard(
+    nextQuery: TransactionQuery = query,
+  ) {
+    setQuery(nextQuery);
+
+    await Promise.all([
+      loadTransactions(nextQuery),
+      loadSummary(),
+    ]);
   }
 
   function openCreateForm() {
@@ -184,7 +263,9 @@ export default function TransactionsPage() {
     setIsFormOpen(true);
   }
 
-  function openEditForm(transaction: Transaction) {
+  function openEditForm(
+    transaction: Transaction,
+  ) {
     setEditingTransaction(transaction);
     setFormError('');
     setSuccessMessage('');
@@ -202,24 +283,31 @@ export default function TransactionsPage() {
   }
 
   async function handleFormSubmit(
-    payload: CreateTransactionInput | UpdateTransactionInput,
+    payload:
+      | CreateTransactionInput
+      | UpdateTransactionInput,
   ) {
     setIsFormSubmitting(true);
     setFormError('');
     setSuccessMessage('');
 
+    const transactionBeingEdited =
+      editingTransaction;
+
     try {
-      if (editingTransaction) {
+      if (transactionBeingEdited) {
         await apiPatch<
           Transaction,
           UpdateTransactionInput
         >(
-          `/transactions/${editingTransaction.id}`,
+          `/transactions/${transactionBeingEdited.id}`,
           payload,
           true,
         );
 
-        setSuccessMessage('Transaction updated successfully.');
+        setSuccessMessage(
+          'Transaction updated successfully.',
+        );
       } else {
         await apiPost<
           Transaction,
@@ -230,15 +318,19 @@ export default function TransactionsPage() {
           true,
         );
 
-        setSuccessMessage('Transaction created successfully.');
+        setSuccessMessage(
+          'Transaction created successfully.',
+        );
       }
 
       setIsFormOpen(false);
       setEditingTransaction(null);
 
-      await refreshTransactions({
+      await refreshDashboard({
         ...query,
-        page: editingTransaction ? query.page : 1,
+        page: transactionBeingEdited
+          ? query.page
+          : 1,
       });
     } catch (requestError) {
       if (
@@ -249,13 +341,17 @@ export default function TransactionsPage() {
         return;
       }
 
-      setFormError(getApiErrorMessage(requestError));
+      setFormError(
+        getApiErrorMessage(requestError),
+      );
     } finally {
       setIsFormSubmitting(false);
     }
   }
 
-  async function handleDelete(transaction: Transaction) {
+  async function handleDelete(
+    transaction: Transaction,
+  ) {
     const confirmed = window.confirm(
       `Delete "${transaction.title}"? This action cannot be undone.`,
     );
@@ -274,7 +370,9 @@ export default function TransactionsPage() {
         true,
       );
 
-      setSuccessMessage('Transaction deleted successfully.');
+      setSuccessMessage(
+        'Transaction deleted successfully.',
+      );
 
       const nextPage =
         transactions.length === 1 &&
@@ -282,7 +380,7 @@ export default function TransactionsPage() {
           ? (query.page ?? 1) - 1
           : query.page ?? 1;
 
-      await refreshTransactions({
+      await refreshDashboard({
         ...query,
         page: nextPage,
       });
@@ -295,7 +393,9 @@ export default function TransactionsPage() {
         return;
       }
 
-      setError(getApiErrorMessage(requestError));
+      setError(
+        getApiErrorMessage(requestError),
+      );
     } finally {
       setDeletingTransactionId(null);
     }
@@ -313,7 +413,9 @@ export default function TransactionsPage() {
     await refreshTransactions(initialQuery);
   }
 
-  async function handlePageChange(page: number) {
+  async function handlePageChange(
+    page: number,
+  ) {
     if (
       page < 1 ||
       page > pagination.totalPages ||
@@ -384,7 +486,8 @@ export default function TransactionsPage() {
             </h1>
 
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Create, search, filter, edit, and delete ledger entries.
+              Track your income, expenses,
+              balance, and financial insights.
             </p>
           </div>
 
@@ -405,12 +508,22 @@ export default function TransactionsPage() {
           <div className="mt-6">
             <Alert
               variant="error"
-              title="Unable to load transactions"
+              title="Unable to load ledger data"
             >
               {error}
             </Alert>
           </div>
         ) : null}
+
+        <section className="mt-8">
+          {isSummaryLoading && !summary ? (
+            <LoadingState message="Loading financial summary..." />
+          ) : summary ? (
+            <TransactionSummaryCards
+              summary={summary}
+            />
+          ) : null}
+        </section>
 
         <section className="mt-8">
           <TransactionFilters
@@ -438,7 +551,11 @@ export default function TransactionsPage() {
             </div>
 
             <TransactionForm
-              mode={editingTransaction ? 'edit' : 'create'}
+              mode={
+                editingTransaction
+                  ? 'edit'
+                  : 'create'
+              }
               transaction={editingTransaction}
               isSubmitting={isFormSubmitting}
               error={formError}
@@ -456,7 +573,9 @@ export default function TransactionsPage() {
               transactions={transactions}
               onEdit={openEditForm}
               onDelete={handleDelete}
-              deletingTransactionId={deletingTransactionId}
+              deletingTransactionId={
+                deletingTransactionId
+              }
             />
           )}
         </section>
@@ -464,7 +583,8 @@ export default function TransactionsPage() {
         {pagination.totalPages > 0 ? (
           <section className="mt-6 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-slate-600">
-              Page {pagination.page} of {pagination.totalPages}
+              Page {pagination.page} of{' '}
+              {pagination.totalPages}
               {' · '}
               {pagination.total} total transactions
             </p>
@@ -489,7 +609,8 @@ export default function TransactionsPage() {
                 variant="secondary"
                 disabled={
                   isListLoading ||
-                  pagination.page >= pagination.totalPages
+                  pagination.page >=
+                    pagination.totalPages
                 }
                 onClick={() =>
                   void handlePageChange(

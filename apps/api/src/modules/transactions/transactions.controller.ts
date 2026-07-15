@@ -20,8 +20,8 @@ import {
   ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user.type';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { ListTransactionsQueryDto } from './dto/list-transactions-query.dto';
@@ -33,56 +33,111 @@ import { TransactionsService } from './transactions.service';
 @Controller('transactions')
 @UseGuards(JwtAuthGuard)
 export class TransactionsController {
-  constructor(private readonly transactionsService: TransactionsService) {}
+  constructor(
+    private readonly transactionsService: TransactionsService,
+  ) {}
 
   @Post()
-  @ApiCreatedResponse({ description: 'Transaction created' })
+  @ApiCreatedResponse({
+    description: 'Transaction created',
+  })
   create(
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateTransactionDto,
   ) {
-    return this.transactionsService.create(user.id, dto);
+    return this.transactionsService.create(
+      user.id,
+      dto,
+    );
   }
 
   @Get()
-  @ApiOkResponse({ description: 'Transactions list' })
+  @ApiOkResponse({
+    description: 'Transactions list',
+  })
   list(
     @CurrentUser() user: AuthenticatedUser,
     @Query() query: ListTransactionsQueryDto,
   ) {
-    return this.transactionsService.list(user.id, query);
+    return this.transactionsService.list(
+      user.id,
+      query,
+    );
+  }
+
+  /*
+   * Keep this static route above @Get(':id').
+   * Otherwise Nest may interpret "summary" as a transaction ID.
+   */
+  @Get('summary')
+  @ApiOkResponse({
+    description:
+      'Financial summary and smart insight',
+  })
+  summary(
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.transactionsService.getSummary(
+      user.id,
+    );
   }
 
   @Get(':id')
-  @ApiParam({ name: 'id', type: String })
-  @ApiOkResponse({ description: 'Transaction retrieved' })
+  @ApiParam({
+    name: 'id',
+    type: String,
+  })
+  @ApiOkResponse({
+    description: 'Transaction retrieved',
+  })
   getOne(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    return this.transactionsService.getOne(user.id, id);
+    return this.transactionsService.getOne(
+      user.id,
+      id,
+    );
   }
 
   @Patch(':id')
-  @ApiParam({ name: 'id', type: String })
-  @ApiOkResponse({ description: 'Transaction updated' })
+  @ApiParam({
+    name: 'id',
+    type: String,
+  })
+  @ApiOkResponse({
+    description: 'Transaction updated',
+  })
   update(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateTransactionDto,
   ) {
-    return this.transactionsService.update(user.id, id, dto);
+    return this.transactionsService.update(
+      user.id,
+      id,
+      dto,
+    );
   }
 
   @Delete(':id')
-  @ApiParam({ name: 'id', type: String })
-  @ApiNoContentResponse({ description: 'Transaction deleted' })
+  @ApiParam({
+    name: 'id',
+    type: String,
+  })
+  @ApiNoContentResponse({
+    description: 'Transaction deleted',
+  })
   @HttpCode(HttpStatus.NO_CONTENT)
   async delete(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    await this.transactionsService.delete(user.id, id);
+    await this.transactionsService.delete(
+      user.id,
+      id,
+    );
+
     return null;
   }
 }

@@ -83,3 +83,18 @@ export interface CreateTransactionInput {
 
 export type UpdateTransactionInput =
   Partial<CreateTransactionInput>;
+
+export interface TransactionSummary {
+  totalIncomeMinor: number;
+  totalExpenseMinor: number;
+  balanceMinor: number;
+  transactionCount: number;
+  currentMonthExpenseMinor: number;
+  previousMonthExpenseMinor: number;
+  monthlyExpenseChangePercentage: number | null;
+  topExpenseCategory: {
+    category: TransactionCategory;
+    amountMinor: number;
+  } | null;
+  insight: string;
+}  
